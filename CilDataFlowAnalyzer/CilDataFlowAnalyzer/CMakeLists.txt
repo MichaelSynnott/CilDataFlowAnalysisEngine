@@ -1,0 +1,9 @@
+﻿# CMakeList.txt : CMake project for CilDataFlowAnalyzer, include source and define
+# project specific logic here.
+#
+cmake_minimum_required (VERSION 3.8)
+
+# Add source to this project's executable.
+add_executable (CilDataFlowAnalyzer   "TestHarness.cpp" "TestHarness.h"   "CilParser.h" "PlatformHeaders.h" "CustomTypes.h" "CilDataFlowAnalyzer.h" "CilDataFlowAnalyzer.cpp" "TestInput/ITestInput.h" "TestInput/Test_FillAttributeInfo.h" "CilParser.cpp" "opdef.h" "BasicBlock.h" "SwitchOperation.h")
+
+# TODO: Add tests and install targets if needed.
