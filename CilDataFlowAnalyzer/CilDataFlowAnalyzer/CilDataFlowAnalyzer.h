@@ -11,7 +11,8 @@ typedef map<BYTE, BYTE> ByteMap;
 
 enum class State
 {
-	BasicBlockScan
+	ScanningForBasicBlocks,
+	PopulatingBasicBlocks
 };
 
 class CilDataFlowAnalyzer : public CilParser
@@ -36,9 +37,12 @@ protected:
 	void CalculateJumpTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& jumpTargets);
 
 	void InitializeJumpOpCodeMap();
+
 	
 	void NotifyOperation(BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, int operationOffset) override;
 
+	BasicBlock* _pCurrentBasicBlock = 0;
+	int _previousOperationOffset = 0;
 	ByteMap _jumpOpCodeMap;
 	BasicBlockMap _basicBlockMap;
 	int _nextBlockNumber = 0;
