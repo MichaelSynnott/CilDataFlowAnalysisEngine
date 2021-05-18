@@ -1,5 +1,8 @@
 #pragma once
-#include <list>
+#include <map>
+
+class BasicBlock;
+typedef std::map<int, BasicBlock*> BasicBlockMap;
 
 class BasicBlock
 {
@@ -12,5 +15,5 @@ public:
 	int Offset;
 	int OperationNumber;
 	int OffsetOfLastOperation;
-	std::list<BasicBlock*> Children;
+	BasicBlockMap Children;
 };

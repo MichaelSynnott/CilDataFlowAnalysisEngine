@@ -1,17 +1,15 @@
 ﻿#include "CilDataFlowAnalyzer.h"
-
 #include "OpCodeHelper.h"
 #include "opdef.h"
 
 void CilDataFlowAnalyzer::ScanForBasicBlocks()
 {
-	_state = State::ScanningForBasicBlocks;
+	_state = State::ScanningForBranchTargets;
 	_basicBlockMap.insert(BasicBlockMap::value_type(0, new BasicBlock(_nextBlockNumber++, 0, 0)));
 	Parse();
 
-	_nextOperationNumber = 0;
+	_nextOperationNumber = -1;
 	_pCurrentBasicBlock = nullptr;
-	_previousOperationOffset = 0;
 	_state = State::PopulatingBasicBlocks;
 	Parse();
 	
@@ -23,8 +21,9 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 	
 	switch (_state)
 	{
-		case State::ScanningForBasicBlocks:
+		case State::ScanningForBranchTargets:
 		{
+			// The target of a branch is the start of a basic block
 			if (!IsJump(opCode))
 				break;
 
@@ -49,39 +48,40 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 			// Cases:
 			// 0: The operation is operation 0
 			// 1: The operation is the start of a basic block and is not operation 0
-			// 2: The operation is a conditional basic block terminator
-			// 3: The operation is a non-conditional basic block terminator
-			// 4: The operation is a method exit or return (RET, THROW, ENDFINALLY, ENDFILTER, RETHROW)
-			// 5: The operation is neither at the start of a basic block, nor a basic block terminator			
+			// 2: The operation is a conditional or non-conditional basic block terminator
+			// 3: The operation is a method exit or return (RET, THROW, ENDFINALLY, ENDFILTER, RETHROW)
+			// 4: The operation is neither at the start of a basic block, nor a basic block terminator (We can just ignore this - there is no processing to do.)
 			
-
-			const auto iterator = _basicBlockMap.find(operationOffset);
+			const auto basicBlockIter = _basicBlockMap.find(operationOffset);
 				
 			// case 0: The operation is operation 0
-			if (iterator != _basicBlockMap.end() && operationOffset == 0)
+			if (basicBlockIter != _basicBlockMap.end() && operationOffset == 0)
 			{
 				// This is the very first operation, so just set the current basic block.
-				_pCurrentBasicBlock = iterator->second;
+				_pCurrentBasicBlock = basicBlockIter->second;
 			}
 
 			// case 1: The operation is the start of a basic block and is not operation 0
-			if (iterator != _basicBlockMap.end() && operationOffset != 0)
+			if (basicBlockIter != _basicBlockMap.end() && operationOffset != 0)
 			{
 				// We have reached the start of a new basic block
-				const auto newBasicBlock = iterator->second;
+				const auto newBasicBlock = basicBlockIter->second;
 				
-				// a. set the offset of the last operation in the previous basic block (pointed to by _pCurrentBasicBlock)
-				_pCurrentBasicBlock->OffsetOfLastOperation = _previousOperationOffset;
+				// If the previous operation was not a 'flow stopper',
+				// ... add the new basic block as a child of the previous basic block (pointed to by _pCurrentBasicBlock)
+				// because the code flows from the previous basic block to the new one.
+				// (If the previous opcode *was* a non-conditional branch or method exit - a flow stopper - code does not flow to the new basic block.)
+				if (!_isPreviousOpCodeAFlowStopper)
+				{
+					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(operationOffset, newBasicBlock));
+				}
 				
-				// b. Add the new basic block as a child of the previous basic block (pointed to by _pCurrentBasicBlock) because the code flows from the previous basic block to the new one
-				_pCurrentBasicBlock->Children.push_back(newBasicBlock);
-				
-				// c. Point _pCurrentBasicBlock to the new basic block
+				// Point _pCurrentBasicBlock to the new basic block
 				_pCurrentBasicBlock = newBasicBlock;
 			}
 
-			// case 2: The operation is a conditional basic block terminator
-			if(OpCodeHelper::IsConditionalBranch(opCode, isTwoByteOpCode))
+			// case 2: The operation is a branch or method return - a basic block terminator
+			if(OpCodeHelper::IsConditionalBranch(opCode, isTwoByteOpCode) || OpCodeHelper::IsNonConditionalBranch(opCode, isTwoByteOpCode))
 			{
 				// We have reached the end of the current basic block
 				// a. set the offset of the last operation in the current basic block to the current operation offset
@@ -93,34 +93,61 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				for (DWORD jumpTarget : jumpTargets)
 				{
 					const auto targetBasicBlock = _basicBlockMap.find(jumpTarget);
-					_pCurrentBasicBlock->Children.push_back(targetBasicBlock->second);
+					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(jumpTarget, targetBasicBlock->second));
 				}
 
 				// The operation after a branch is the beginning of a new basic block
+				// We need to check if there is already a basic block defined there
 				// Calculate the offset of the next operation
 				const auto nextOperationOffset = operationOffset
 					+ 1	// 1 byte for the opcode
 					+ (isTwoByteOpCode ? 1 : 0)	// 1 byte, if it's a two-byte opcode
 					+ cilOperand.OperandByteSize;
 
+				// If we've not reached the end of the code ...
 				if(nextOperationOffset < _codeLength)
 				{
-					BasicBlock* subsequentBasicBlock;
 					const auto subsequentBasicBlockIter = _basicBlockMap.find(nextOperationOffset);
+					// If there's no basic block at that offset, define one
 					if(subsequentBasicBlockIter == _basicBlockMap.end())
 					{
-						subsequentBasicBlock = new BasicBlock(_nextBlockNumber++, nextOperationOffset, _nextOperationNumber);
+						auto subsequentBasicBlock = new BasicBlock(_nextBlockNumber++, nextOperationOffset, _nextOperationNumber + 1);
 						_basicBlockMap.insert(BasicBlockMap::value_type(nextOperationOffset, subsequentBasicBlock));
 					}
-					else
-					{
-						subsequentBasicBlock = subsequentBasicBlockIter->second;
-					}
-					_pCurrentBasicBlock->Children.push_back(subsequentBasicBlock);				
 				}
+
+				_isPreviousOpCodeAFlowStopper = OpCodeHelper::IsNonConditionalBranch(opCode, isTwoByteOpCode);
 			}
 
-			_previousOperationOffset = _currentOperationOffset;
+			// case 3: The operation is a method exit or return (RET, THROW, ENDFINALLY, ENDFILTER, RETHROW)
+			if(OpCodeHelper::IsMethodExit(opCode, isTwoByteOpCode))
+			{
+				// We have reached the end of the current basic block
+				// a. set the offset of the last operation in the current basic block to the current operation offset
+				_pCurrentBasicBlock->OffsetOfLastOperation = operationOffset;
+
+				// The operation after a method exit is the beginning of a new basic block
+				// We need to check if there is already a basic block defined there
+				// Calculate the offset of the next operation
+				const auto nextOperationOffset = operationOffset
+					+ 1	// 1 byte for the opcode
+					+ (isTwoByteOpCode ? 1 : 0)	// 1 byte, if it's a two-byte opcode
+					+ cilOperand.OperandByteSize;
+
+				// If we've not reached the end of the code ...
+				if (nextOperationOffset < _codeLength)
+				{
+					const auto subsequentBasicBlockIter = _basicBlockMap.find(nextOperationOffset);
+					// If there's no basic block at that offset, define one
+					if (subsequentBasicBlockIter == _basicBlockMap.end())
+					{
+						auto subsequentBasicBlock = new BasicBlock(_nextBlockNumber++, nextOperationOffset, _nextOperationNumber + 1);
+						_basicBlockMap.insert(BasicBlockMap::value_type(nextOperationOffset, subsequentBasicBlock));
+					}
+				}
+
+				_isPreviousOpCodeAFlowStopper = true;
+			}
 		}
 		break;
 	}
@@ -128,7 +155,7 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 
 bool CilDataFlowAnalyzer::IsJump(BYTE opCode) const
 {
-	return _jumpOpCodeMap.count(opCode) != 0;
+	return _branchOpCodeMap.count(opCode) != 0;
 }
 
  void CilDataFlowAnalyzer::CalculateJumpTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& jumpTargets)
@@ -155,41 +182,41 @@ bool CilDataFlowAnalyzer::IsJump(BYTE opCode) const
 		+ (isTwoByteOpCode ? 1 : 0)	// 1 byte, if it's a two-byte opcode
 		+ cilOperand.OperandByteSize;
 
-	const auto operandSize = _jumpOpCodeMap.find(opCode)->second;
+	const auto operandSize = _branchOpCodeMap.find(opCode)->second;
 	DWORD jumpSize = operandSize == 4 ? cilOperand.Int32 : cilOperand.Int8;
 	jumpTargets.push_back(jumpBase + jumpSize);
 	return;
 }
 
-void CilDataFlowAnalyzer::InitializeJumpOpCodeMap()
+void CilDataFlowAnalyzer::InitializeBranchOpCodeMap()
 {
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BR_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BRFALSE_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BRTRUE_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BEQ_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGE_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGT_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLE_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLT_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BNE_UN_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGE_UN_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGT_UN_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLE_UN_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLT_UN_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BR, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BRFALSE, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BRTRUE, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BEQ, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGE, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGT, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLE, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLT, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BNE_UN, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGE_UN, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BGT_UN, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLE_UN, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_BLT_UN, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_LEAVE_S, 1));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_LEAVE, 4));
-	_jumpOpCodeMap.insert(ByteMap::value_type(CEE_SWITCH, 0));	
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BR_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BRFALSE_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BRTRUE_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BEQ_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGE_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGT_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLE_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLT_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BNE_UN_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGE_UN_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGT_UN_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLE_UN_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLT_UN_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BR, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BRFALSE, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BRTRUE, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BEQ, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGE, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGT, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLE, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLT, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BNE_UN, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGE_UN, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BGT_UN, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLE_UN, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_BLT_UN, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_LEAVE_S, 1));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_LEAVE, 4));
+	_branchOpCodeMap.insert(ByteMap::value_type(CEE_SWITCH, 0));	
 }
