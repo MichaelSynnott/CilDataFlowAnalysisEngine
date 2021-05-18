@@ -24,21 +24,21 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 		case State::ScanningForBranchTargets:
 		{
 			// The target of a branch is the start of a basic block
-			if (!IsJump(opCode))
+			if (!IsBranch(opCode))
 				break;
 
-			// Calculate the target offset of the jump from the current offset, the length of the operation and the size of the jump
-			DWordList jumpTargets;
-			CalculateJumpTargetOffsets(operationOffset, opCode, isTwoByteOpCode, cilOperand, jumpTargets);
+			// Calculate the target offset of the branch from the current offset, the length of the operation and the size of the jump
+			DWordList branchTargets;
+			CalculateBranchTargetOffsets(operationOffset, opCode, isTwoByteOpCode, cilOperand, branchTargets);
 
-			for (DWORD jumpTarget : jumpTargets)
+			for (DWORD branchTarget : branchTargets)
 			{
-				auto iterator = _basicBlockMap.find(jumpTarget);
+				auto iterator = _basicBlockMap.find(branchTarget);
 				if (iterator != _basicBlockMap.end())
 					continue;
 
-				auto basicBlock = new BasicBlock(_nextBlockNumber++, jumpTarget, _nextOperationNumber);
-				_basicBlockMap.insert(BasicBlockMap::value_type(jumpTarget, basicBlock));
+				auto basicBlock = new BasicBlock(_nextBlockNumber++, branchTarget, _nextOperationNumber);
+				_basicBlockMap.insert(BasicBlockMap::value_type(branchTarget, basicBlock));
 			}
 		}
 		break;
@@ -87,13 +87,13 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// a. set the offset of the last operation in the current basic block to the current operation offset
 				_pCurrentBasicBlock->OffsetOfLastOperation = operationOffset;
 
-				// b. Iterate over the target(s) of the conditional jump, find the basic block for each target and make the basic block a child of the current basic block
-				DWordList jumpTargets;
-				CalculateJumpTargetOffsets(operationOffset, opCode, isTwoByteOpCode, cilOperand, jumpTargets);
-				for (DWORD jumpTarget : jumpTargets)
+				// b. Iterate over the target(s) of the conditional branch, find the basic block for each target and make the basic block a child of the current basic block
+				DWordList branchTargets;
+				CalculateBranchTargetOffsets(operationOffset, opCode, isTwoByteOpCode, cilOperand, branchTargets);
+				for (DWORD branchTarget : branchTargets)
 				{
-					const auto targetBasicBlock = _basicBlockMap.find(jumpTarget);
-					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(jumpTarget, targetBasicBlock->second));
+					const auto targetBasicBlock = _basicBlockMap.find(branchTarget);
+					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(branchTarget, targetBasicBlock->second));
 				}
 
 				// The operation after a branch is the beginning of a new basic block
@@ -153,15 +153,15 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 	}
 }
 
-bool CilDataFlowAnalyzer::IsJump(BYTE opCode) const
+bool CilDataFlowAnalyzer::IsBranch(BYTE opCode) const
 {
 	return _branchOpCodeMap.count(opCode) != 0;
 }
 
- void CilDataFlowAnalyzer::CalculateJumpTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& jumpTargets)
+ void CilDataFlowAnalyzer::CalculateBranchTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& branchTargets)
 {
-	// A switch statement has multiple targets. All other jump types have a single target.
-	// Calculate the target offset of the jump(s) from the current offset, the length of the operation and the size of the jump(s)
+	// A switch statement has multiple targets. All other branch types have a single target.
+	// Calculate the target offset of the branch(s) from the current offset, the length of the operation and the size of the jump(s)
 	 
 	if(opCode == CEE_SWITCH)
 	{
@@ -171,7 +171,7 @@ bool CilDataFlowAnalyzer::IsJump(BYTE opCode) const
 
 		for(int i = 0; i < cilOperand.SwitchOperation->NumberOfTargets; i++)
 		{
-			jumpTargets.push_back(jumpBase + cilOperand.SwitchOperation->Targets[i]);
+			branchTargets.push_back(jumpBase + cilOperand.SwitchOperation->Targets[i]);
 		}
 
 		return;
@@ -183,8 +183,8 @@ bool CilDataFlowAnalyzer::IsJump(BYTE opCode) const
 		+ cilOperand.OperandByteSize;
 
 	const auto operandSize = _branchOpCodeMap.find(opCode)->second;
-	DWORD jumpSize = operandSize == 4 ? cilOperand.Int32 : cilOperand.Int8;
-	jumpTargets.push_back(jumpBase + jumpSize);
+	const DWORD jumpSize = operandSize == 4 ? cilOperand.Int32 : cilOperand.Int8;
+	branchTargets.push_back(jumpBase + jumpSize);
 	return;
 }
 

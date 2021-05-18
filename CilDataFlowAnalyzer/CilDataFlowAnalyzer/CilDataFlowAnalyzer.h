@@ -32,8 +32,8 @@ public:
 	void ScanForBasicBlocks();
 
 protected:
-	bool IsJump(BYTE opCode) const;
-	void CalculateJumpTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& jumpTargets);
+	bool IsBranch(BYTE opCode) const;
+	void CalculateBranchTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& branchTargets);
 
 	void InitializeBranchOpCodeMap();
 
