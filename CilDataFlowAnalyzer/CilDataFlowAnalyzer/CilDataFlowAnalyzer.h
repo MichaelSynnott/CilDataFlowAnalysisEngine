@@ -1,12 +1,9 @@
 ﻿#pragma once
 #include "BasicBlock.h"
+#include "BasicBlockTree.h"
 #include "InstructionEnumerator.h"
 
 using namespace std;
-
-
-typedef list<DWORD> DWordList;
-typedef map<BYTE, BYTE> ByteMap;
 
 enum class State
 {
@@ -29,20 +26,18 @@ public:
 		InitializeBranchOpCodeMap();
 	}
 
-	void ScanForBasicBlocks();
+	void Init();
+	StackState GetStackStatusAtOffset(int offset);
 
 protected:
 	bool IsBranch(BYTE opCode) const;
 	void CalculateBranchTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& branchTargets);
-
 	void InitializeBranchOpCodeMap();
-
-	
 	void NotifyOperation(BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, int operationOffset) override;
 
 	BasicBlock* _pCurrentBasicBlock = 0;
 	ByteMap _branchOpCodeMap;
-	BasicBlockMap _basicBlockMap;
+	BasicBlockTree _basicBlockTree;
 	int _nextBlockNumber = 0;
 	int _nextOperationNumber = -1;
 	State _state;

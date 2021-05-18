@@ -2,17 +2,22 @@
 #include "OpCodeHelper.h"
 #include "opdef.h"
 
-void CilDataFlowAnalyzer::ScanForBasicBlocks()
+void CilDataFlowAnalyzer::Init()
 {
 	_state = State::ScanningForBranchTargets;
-	_basicBlockMap.insert(BasicBlockMap::value_type(0, new BasicBlock(_nextBlockNumber++, 0, 0)));
+	_basicBlockTree.insert(BasicBlockTree::value_type(0, new BasicBlock(_nextBlockNumber++, 0, 0)));
 	Parse();
 
 	_nextOperationNumber = -1;
 	_pCurrentBasicBlock = nullptr;
 	_state = State::PopulatingBasicBlocks;
 	Parse();
-	
+}
+
+
+StackState CilDataFlowAnalyzer::GetStackStatusAtOffset(int offset)
+{
+	return _basicBlockTree.GetStackStatusAtOffset(offset);
 }
 
 void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, int operationOffset)
@@ -33,12 +38,12 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 
 			for (DWORD branchTarget : branchTargets)
 			{
-				auto iterator = _basicBlockMap.find(branchTarget);
-				if (iterator != _basicBlockMap.end())
+				auto iterator = _basicBlockTree.find(branchTarget);
+				if (iterator != _basicBlockTree.end())
 					continue;
 
 				auto basicBlock = new BasicBlock(_nextBlockNumber++, branchTarget, _nextOperationNumber);
-				_basicBlockMap.insert(BasicBlockMap::value_type(branchTarget, basicBlock));
+				_basicBlockTree.insert(BasicBlockTree::value_type(branchTarget, basicBlock));
 			}
 		}
 		break;
@@ -52,17 +57,17 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 			// 3: The operation is a method exit or return (RET, THROW, ENDFINALLY, ENDFILTER, RETHROW)
 			// 4: The operation is neither at the start of a basic block, nor a basic block terminator (We can just ignore this - there is no processing to do.)
 			
-			const auto basicBlockIter = _basicBlockMap.find(operationOffset);
+			const auto basicBlockIter = _basicBlockTree.find(operationOffset);
 				
 			// case 0: The operation is operation 0
-			if (basicBlockIter != _basicBlockMap.end() && operationOffset == 0)
+			if (basicBlockIter != _basicBlockTree.end() && operationOffset == 0)
 			{
 				// This is the very first operation, so just set the current basic block.
 				_pCurrentBasicBlock = basicBlockIter->second;
 			}
 
 			// case 1: The operation is the start of a basic block and is not operation 0
-			if (basicBlockIter != _basicBlockMap.end() && operationOffset != 0)
+			if (basicBlockIter != _basicBlockTree.end() && operationOffset != 0)
 			{
 				// We have reached the start of a new basic block
 				const auto newBasicBlock = basicBlockIter->second;
@@ -73,7 +78,7 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// (If the previous opcode *was* a non-conditional branch or method exit - a flow stopper - code does not flow to the new basic block.)
 				if (!_isPreviousOpCodeAFlowStopper)
 				{
-					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(operationOffset, newBasicBlock));
+					_pCurrentBasicBlock->Children.insert(BasicBlockTree::value_type(operationOffset, newBasicBlock));
 				}
 				
 				// Point _pCurrentBasicBlock to the new basic block
@@ -92,8 +97,8 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				CalculateBranchTargetOffsets(operationOffset, opCode, isTwoByteOpCode, cilOperand, branchTargets);
 				for (DWORD branchTarget : branchTargets)
 				{
-					const auto targetBasicBlock = _basicBlockMap.find(branchTarget);
-					_pCurrentBasicBlock->Children.insert(BasicBlockMap::value_type(branchTarget, targetBasicBlock->second));
+					const auto targetBasicBlock = _basicBlockTree.find(branchTarget);
+					_pCurrentBasicBlock->Children.insert(BasicBlockTree::value_type(branchTarget, targetBasicBlock->second));
 				}
 
 				// The operation after a branch is the beginning of a new basic block
@@ -107,12 +112,12 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// If we've not reached the end of the code ...
 				if(nextOperationOffset < _codeLength)
 				{
-					const auto subsequentBasicBlockIter = _basicBlockMap.find(nextOperationOffset);
+					const auto subsequentBasicBlockIter = _basicBlockTree.find(nextOperationOffset);
 					// If there's no basic block at that offset, define one
-					if(subsequentBasicBlockIter == _basicBlockMap.end())
+					if(subsequentBasicBlockIter == _basicBlockTree.end())
 					{
 						auto subsequentBasicBlock = new BasicBlock(_nextBlockNumber++, nextOperationOffset, _nextOperationNumber + 1);
-						_basicBlockMap.insert(BasicBlockMap::value_type(nextOperationOffset, subsequentBasicBlock));
+						_basicBlockTree.insert(BasicBlockTree::value_type(nextOperationOffset, subsequentBasicBlock));
 					}
 				}
 
@@ -137,12 +142,12 @@ void CilDataFlowAnalyzer::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// If we've not reached the end of the code ...
 				if (nextOperationOffset < _codeLength)
 				{
-					const auto subsequentBasicBlockIter = _basicBlockMap.find(nextOperationOffset);
+					const auto subsequentBasicBlockIter = _basicBlockTree.find(nextOperationOffset);
 					// If there's no basic block at that offset, define one
-					if (subsequentBasicBlockIter == _basicBlockMap.end())
+					if (subsequentBasicBlockIter == _basicBlockTree.end())
 					{
 						auto subsequentBasicBlock = new BasicBlock(_nextBlockNumber++, nextOperationOffset, _nextOperationNumber + 1);
-						_basicBlockMap.insert(BasicBlockMap::value_type(nextOperationOffset, subsequentBasicBlock));
+						_basicBlockTree.insert(BasicBlockTree::value_type(nextOperationOffset, subsequentBasicBlock));
 					}
 				}
 

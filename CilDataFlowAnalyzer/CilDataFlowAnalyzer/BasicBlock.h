@@ -1,8 +1,8 @@
 #pragma once
-#include <map>
+#include "CustomTypes.h"
 
 class BasicBlock;
-typedef std::map<int, BasicBlock*> BasicBlockMap;
+
 
 class BasicBlock
 {
