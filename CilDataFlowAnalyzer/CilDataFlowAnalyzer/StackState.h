@@ -2,5 +2,7 @@
 
 class StackState
 {
+public:
+	const static StackState Empty;
 	
 };

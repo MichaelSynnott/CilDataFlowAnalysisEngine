@@ -6,27 +6,44 @@ StackState BasicBlockTree::GetStackStatusAtOffset(int offset)
 	// 1. Find a code path from basic block 0 to BBO
 	// 2. Walk the code path, maintaining the stack state
 
-	auto basicBlock = GetBasicBlockAtOffset(offset);
+	const auto pTargetBasicBlock = GetBasicBlockAtOffset(offset);
 	
+	if (pTargetBasicBlock == nullptr)
+		return StackState::Empty;;
+
+	const auto pRootBasicBlock = this->at(0);
 	BasicBlockMap route;
-	GetRouteToBasicBlock(basicBlock, route);
+	GetRouteToBasicBlock(pTargetBasicBlock, pRootBasicBlock, route);
+
 	
 	return StackState{};
 }
 
 BasicBlock* BasicBlockTree::GetBasicBlockAtOffset(int offset)
 {
-	const auto iterator = this->lower_bound(offset);
-	if (iterator == this->end())
-		return nullptr;
+	for (auto& iBasicBlock : *this)
+	{
+		if (iBasicBlock.second->Offset > offset)
+			return nullptr;
 
-	if (offset > iterator->second->OffsetOfLastOperation)
-		return nullptr;
-	
-	return iterator->second;
+		if (offset >= iBasicBlock.second->Offset && offset <= iBasicBlock.second->OffsetOfLastOperation)
+			return iBasicBlock.second;
+	}
+	return nullptr;
 }
 
-void BasicBlockTree::GetRouteToBasicBlock(BasicBlock* pBasicBlock, BasicBlockMap& basicBlockMap)
+bool BasicBlockTree::GetRouteToBasicBlock(BasicBlock* pTarget, BasicBlock* pRoot, BasicBlockMap& route)
 {
+	route.insert(BasicBlockMap::value_type(pRoot->Offset, pRoot));
+	if (pRoot->Offset == pTarget->Offset)
+		return true;
 	
+	for(auto bb : pRoot->Children)
+	{
+		if (GetRouteToBasicBlock(pTarget, bb.second, route))
+			return true;
+		
+		route.erase(bb.second->Offset);
+	}
+	return false;
 }

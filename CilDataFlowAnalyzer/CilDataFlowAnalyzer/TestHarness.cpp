@@ -17,6 +17,6 @@ int main()
 	CilDataFlowAnalyzer analyzer{ testInput->GetTestBytes(), testInput->GetTestLength() };
 	analyzer.Init();
 	
-	auto x = analyzer.GetStackStatusAtOffset(0x7d);
+	auto x = analyzer.GetStackStatusAtOffset(0x40);
 	
 }
