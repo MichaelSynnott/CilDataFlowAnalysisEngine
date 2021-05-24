@@ -8,6 +8,8 @@
 #include <string>
 #include <map>
 
+#include "ExceptionHandlingClause.h"
+
 class BasicBlock;
 
 #if !defined(_CUSTOM_TYPES_DEFINED)
@@ -21,5 +23,6 @@ typedef std::map<WORD, WSTRING> LabelAliasToLabelMap;
 typedef std::map<int, BasicBlock*> BasicBlockMap;
 typedef std::list<DWORD> DWordList;
 typedef std::map<BYTE, BYTE> ByteMap;
+typedef std::map<unsigned, ExceptionHandlingClause*> ExceptionHandlingClauseMap;
 #define _CUSTOM_TYPES_DEFINED
 #endif

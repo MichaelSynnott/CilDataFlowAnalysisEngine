@@ -9,12 +9,18 @@ StackState BasicBlockTree::GetStackStatusAtOffset(int offset)
 	const auto pTargetBasicBlock = GetBasicBlockAtOffset(offset);
 	
 	if (pTargetBasicBlock == nullptr)
-		return StackState::Empty;;
+		return StackState{};
 
 	const auto pRootBasicBlock = this->at(0);
 	BasicBlockMap route;
 	GetRouteToBasicBlock(pTargetBasicBlock, pRootBasicBlock, route);
+	
+	// Now walk the calculated route to the operation at the specified offset,
+	// calculating the stack state as we go.
 
+	//auto x = GetCodePathBytes(route, offset);
+	
+	// TODO: Walk the route, calculating the stack state
 	
 	return StackState{};
 }
@@ -38,7 +44,7 @@ bool BasicBlockTree::GetRouteToBasicBlock(BasicBlock* pTarget, BasicBlock* pRoot
 	if (pRoot->Offset == pTarget->Offset)
 		return true;
 	
-	for(auto bb : pRoot->Children)
+	for(const auto bb : pRoot->Children)
 	{
 		if (GetRouteToBasicBlock(pTarget, bb.second, route))
 			return true;

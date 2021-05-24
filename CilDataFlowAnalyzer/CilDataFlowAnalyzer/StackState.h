@@ -1,8 +1,13 @@
 #pragma once
+#include <stack>
 
-class StackState
+class StackState : public std::stack<CorElementType>
 {
 public:
-	const static StackState Empty;
+	StackState() = default;
 	
+	StackState(CorElementType corElementType)
+	{
+		this->push(corElementType);
+	}	
 };

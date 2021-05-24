@@ -1,45 +1,39 @@
-﻿#pragma once
-#include "BasicBlock.h"
-#include "BasicBlockTree.h"
-#include "InstructionEnumerator.h"
+#pragma once
 
-using namespace std;
+#include <corhlpr.h>
 
-enum class State
-{
-	ScanningForBranchTargets,
-	PopulatingBasicBlocks
-};
+#include "CilBasicBlockParser.h"
+#include "CustomTypes.h"
+#include "StackState.h"
 
-class CilDataFlowAnalyzer : public CilParser
+class CilDataFlowAnalyzer
 {
 public:
-	CilDataFlowAnalyzer(BYTE* pCode, int codeLength)
-		: CilParser(pCode, codeLength)
-	{
-		InitializeBranchOpCodeMap();
-	}
-
-	CilDataFlowAnalyzer(WordList& cilBytes)
-		: CilParser(cilBytes)
-	{
-		InitializeBranchOpCodeMap();
-	}
-
+	CilDataFlowAnalyzer(BYTE* pMethodBytes);
+	CilDataFlowAnalyzer(BYTE* pMethodBytes, bool initialize);
 	void Init();
 	StackState GetStackStatusAtOffset(int offset);
 
-protected:
-	bool IsBranch(BYTE opCode) const;
-	void CalculateBranchTargetOffsets(int operationOffset, BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, DWordList& branchTargets);
-	void InitializeBranchOpCodeMap();
-	void NotifyOperation(BYTE opCode, bool isTwoByteOpCode, CilOperand cilOperand, int operationOffset) override;
+private:
+	void ParseMethodBytes();
+	void ParseHeader();
+	void ParseCode();
+	void ParseExtraDataSections();
 
-	BasicBlock* _pCurrentBasicBlock = 0;
-	ByteMap _branchOpCodeMap;
-	BasicBlockTree _basicBlockTree;
-	int _nextBlockNumber = 0;
-	int _nextOperationNumber = -1;
-	State _state;
-	bool _isPreviousOpCodeAFlowStopper = false;
+	bool _isInitialized = false;
+	CilBasicBlockParser* _pCilBasicBlockParser = nullptr;
+	
+	bool _isFat = false;
+	
+	BYTE* _pMethodBytes = nullptr;
+	
+	BYTE* _pCodeBytes = nullptr;
+	unsigned int _codeSize = 0;
+	
+	unsigned int _maxStack = 0;
+	unsigned int _flags = 0;
+	mdToken _localVarSigTok = 0;
+	bool _hasMore = false;
+	COR_ILMETHOD_SECT* _pExtraDataSections = nullptr;
+	ExceptionHandlingClauseMap _clauseMap;
 };
