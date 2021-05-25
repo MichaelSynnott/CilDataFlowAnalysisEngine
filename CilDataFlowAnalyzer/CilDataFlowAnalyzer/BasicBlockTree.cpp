@@ -1,5 +1,7 @@
 #include "BasicBlockTree.h"
 
+#include "BasicBlockRoute.h"
+
 StackState BasicBlockTree::GetStackStatusAtOffset(int offset)
 {
 	// 0. Find out which basic block the offset is in. => BBO
@@ -12,13 +14,15 @@ StackState BasicBlockTree::GetStackStatusAtOffset(int offset)
 		return StackState{};
 
 	const auto pRootBasicBlock = this->at(0);
-	BasicBlockMap route;
+	BasicBlockRoute route;
 	GetRouteToBasicBlock(pTargetBasicBlock, pRootBasicBlock, route);
 	
 	// Now walk the calculated route to the operation at the specified offset,
 	// calculating the stack state as we go.
 
 	//auto x = GetCodePathBytes(route, offset);
+
+	auto x = route.GetRouteCodeSizeToOffset(offset);
 	
 	// TODO: Walk the route, calculating the stack state
 	
@@ -38,9 +42,9 @@ BasicBlock* BasicBlockTree::GetBasicBlockAtOffset(int offset)
 	return nullptr;
 }
 
-bool BasicBlockTree::GetRouteToBasicBlock(BasicBlock* pTarget, BasicBlock* pRoot, BasicBlockMap& route)
+bool BasicBlockTree::GetRouteToBasicBlock(BasicBlock* pTarget, BasicBlock* pRoot, BasicBlockRoute& route)
 {
-	route.insert(BasicBlockMap::value_type(pRoot->Offset, pRoot));
+	route.insert(BasicBlockRoute::value_type(pRoot->Offset, pRoot));
 	if (pRoot->Offset == pTarget->Offset)
 		return true;
 	

@@ -90,7 +90,7 @@ build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\TestHarness.cpp.obj
   TARGET_COMPILE_PDB = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\
   TARGET_PDB = CilDataFlowAnalyzer\CilDataFlowAnalyzer.pdb
 
-build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilBasicBlocker.cpp.obj: CXX_COMPILER__CilDataFlowAnalyzer_Debug ..\..\..\CilDataFlowAnalyzer\CilBasicBlocker.cpp || cmake_object_order_depends_target_CilDataFlowAnalyzer
+build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilBasicBlockParser.cpp.obj: CXX_COMPILER__CilDataFlowAnalyzer_Debug ..\..\..\CilDataFlowAnalyzer\CilBasicBlockParser.cpp || cmake_object_order_depends_target_CilDataFlowAnalyzer
   FLAGS = /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1
   OBJECT_DIR = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir
   OBJECT_FILE_DIR = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir
@@ -132,6 +132,13 @@ build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilDataFlowAnalyzer
   TARGET_COMPILE_PDB = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\
   TARGET_PDB = CilDataFlowAnalyzer\CilDataFlowAnalyzer.pdb
 
+build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\BasicBlockRoute.cpp.obj: CXX_COMPILER__CilDataFlowAnalyzer_Debug ..\..\..\CilDataFlowAnalyzer\BasicBlockRoute.cpp || cmake_object_order_depends_target_CilDataFlowAnalyzer
+  FLAGS = /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1
+  OBJECT_DIR = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir
+  OBJECT_FILE_DIR = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir
+  TARGET_COMPILE_PDB = CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\
+  TARGET_PDB = CilDataFlowAnalyzer\CilDataFlowAnalyzer.pdb
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target CilDataFlowAnalyzer
@@ -140,7 +147,7 @@ build CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilDataFlowAnalyzer
 #############################################
 # Link the executable CilDataFlowAnalyzer\CilDataFlowAnalyzer.exe
 
-build CilDataFlowAnalyzer\CilDataFlowAnalyzer.exe: CXX_EXECUTABLE_LINKER__CilDataFlowAnalyzer_Debug CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\TestHarness.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilBasicBlocker.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilParser.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\OpCodeHelper.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\BasicBlockTree.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\InsertedBytes.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilDataFlowAnalyzer.cpp.obj
+build CilDataFlowAnalyzer\CilDataFlowAnalyzer.exe: CXX_EXECUTABLE_LINKER__CilDataFlowAnalyzer_Debug CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\TestHarness.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilBasicBlockParser.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilParser.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\OpCodeHelper.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\BasicBlockTree.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\InsertedBytes.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\CilDataFlowAnalyzer.cpp.obj CilDataFlowAnalyzer\CMakeFiles\CilDataFlowAnalyzer.dir\BasicBlockRoute.cpp.obj
   FLAGS = /DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1
   LINK_FLAGS = /machine:x64 /debug /INCREMENTAL /subsystem:console
   LINK_LIBRARIES = kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib

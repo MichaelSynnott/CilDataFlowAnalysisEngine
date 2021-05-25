@@ -32,7 +32,7 @@ void CilDataFlowAnalyzer::Init()
 StackState CilDataFlowAnalyzer::GetStackStatusAtOffset(int offset)
 {
 	if (! _isInitialized)
-		throw std::logic_error("The CilDataFlowAnalyzer is not initialized. You must call Init() before using it");
+		throw std::logic_error("The CilDataFlowAnalyzer is not initialized. You must call Init() before using it.");
 	
 	// Check if the offset is within a SEH handler block.
 	// If it is, the stack will contain only the exception in question

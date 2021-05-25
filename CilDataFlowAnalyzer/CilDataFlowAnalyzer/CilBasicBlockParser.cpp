@@ -91,6 +91,7 @@ void CilBasicBlockParser::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// We have reached the end of the current basic block
 				// a. set the offset of the last operation in the current basic block to the current operation offset
 				_pCurrentBasicBlock->OffsetOfLastOperation = operationOffset;
+				_pCurrentBasicBlock->LengthOfLastOperation = 1 + (isTwoByteOpCode ? 1 : 0) + cilOperand.OperandByteSize;
 
 				// b. Iterate over the target(s) of the conditional branch, find the basic block for each target and make the basic block a child of the current basic block
 				DWordList branchTargets;
@@ -130,6 +131,7 @@ void CilBasicBlockParser::NotifyOperation(BYTE opCode, bool isTwoByteOpCode, Cil
 				// We have reached the end of the current basic block
 				// a. set the offset of the last operation in the current basic block to the current operation offset
 				_pCurrentBasicBlock->OffsetOfLastOperation = operationOffset;
+				_pCurrentBasicBlock->LengthOfLastOperation = 1 + (isTwoByteOpCode ? 1 : 0) + cilOperand.OperandByteSize;
 
 				// The operation after a method exit is the beginning of a new basic block
 				// We need to check if there is already a basic block defined there

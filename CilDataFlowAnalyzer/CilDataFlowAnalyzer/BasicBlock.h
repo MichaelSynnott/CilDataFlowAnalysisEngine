@@ -15,5 +15,6 @@ public:
 	int Offset;
 	int OperationNumber;
 	int OffsetOfLastOperation;
+	int LengthOfLastOperation;
 	BasicBlockMap Children;
 };
