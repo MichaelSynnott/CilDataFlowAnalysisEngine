@@ -17,6 +17,34 @@ void CilBasicBlockParser::Init()
 
 StackState CilBasicBlockParser::GetStackStatusAtOffset(int offset)
 {
+	const auto pTargetBasicBlock = _basicBlockTree.GetBasicBlockAtOffset(offset);
+
+	if (pTargetBasicBlock == nullptr)
+		return StackState{};
+
+	const auto pRootBasicBlock = _basicBlockTree.at(0);
+	BasicBlockRoute route;
+	BasicBlockTree::GetRouteToBasicBlock(pTargetBasicBlock, pRootBasicBlock, route);
+
+	const unsigned codePathSize = route.GetRouteCodeSizeToOffset(offset);
+	BYTE* codePath = new BYTE[codePathSize];
+	unsigned ip = 0;
+	for(const auto node : route)
+	{
+		const auto basicBlock = node.second;
+		for(
+			auto i = basicBlock->Offset; 
+			i < basicBlock->OffsetOfLastOperation + basicBlock->LengthOfLastOperation && i < offset; 
+			++i)
+		{
+			codePath[ip++] = _code[i];
+		}
+	}
+	
+	
+
+
+	
 	return _basicBlockTree.GetStackStatusAtOffset(offset);
 }
 
